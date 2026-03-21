@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface AsociacionUsuarioFondoRepository extends MongoRepository<AsociacionUsuarioFondo, String> {
 
-    List<AsociacionUsuarioFondo> findAllByIdUsuarioOrderByFechaHoraCreacionAsc(String idUsuario);
+    List<AsociacionUsuarioFondo> findAllByIdUsuarioOrderByFechaHoraCreacionDesc(String idUsuario);
 
     Boolean existsByIdUsuarioAndIdFondoAndActivo(String idUsuario, String idFondo, Boolean activo);
 

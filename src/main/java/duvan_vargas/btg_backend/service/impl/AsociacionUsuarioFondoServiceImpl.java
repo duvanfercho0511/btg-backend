@@ -10,6 +10,7 @@ import duvan_vargas.btg_backend.repository.FondoRepository;
 import duvan_vargas.btg_backend.repository.UsuarioRepository;
 import duvan_vargas.btg_backend.service.interfaces.IAsociacionUsuarioFondoService;
 import duvan_vargas.btg_backend.util.IConstantes;
+import duvan_vargas.btg_backend.util.SmsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
@@ -17,6 +18,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -30,11 +32,13 @@ public class AsociacionUsuarioFondoServiceImpl implements IAsociacionUsuarioFond
 
     private FondoRepository fondoRepository;
 
+    private final SmsService smsService;
+
     private final JavaMailSender javaMailSender;
 
     @Override
     public List<AsociacionUsuarioFondo> findAllAsociacionByIdUsuario(String idUsuario) {
-        return this.asociacionUsuarioFondoRepository.findAllByIdUsuarioOrderByFechaHoraCreacionAsc(idUsuario);
+        return this.asociacionUsuarioFondoRepository.findAllByIdUsuarioOrderByFechaHoraCreacionDesc(idUsuario);
     }
 
     @Override
@@ -75,13 +79,12 @@ public class AsociacionUsuarioFondoServiceImpl implements IAsociacionUsuarioFond
                 message.setText("Tu suscripcion fue exitosa al fondo: " + fondo.getNombre() );
                 javaMailSender.send(message);
             }else{
-
-                //AJUSTAR ENVIO DE MENSAJE DE TEXTO
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setTo(usuario.getEmail());
-                message.setSubject("Suscripcion exitosa a fondo");
-                message.setText("Tu suscripcion fue exitosa al fondo: " + fondo.getNombre() );
-                javaMailSender.send(message);
+                //Este metodo de mensajería solo funciona con números confirmados, es funcional,
+                //de cualquier manera el envío de email siempre está disponible
+                this.smsService.enviarSms(
+                        usuario.getNumeroTelefono(),
+                        "Tu suscripcion fue exitosa al fondo: " + fondo.getNombre()
+                );
             }
 
             return asociacionUsuarioFondoBD;
@@ -126,8 +129,23 @@ public class AsociacionUsuarioFondoServiceImpl implements IAsociacionUsuarioFond
     }
 
     private void validarCancelacion(AsociacionUsuarioFondo asociacionUsuarioFondo){
-        var exists = this.asociacionUsuarioFondoRepository.existsByIdUsuarioAndIdFondoAndActivo(asociacionUsuarioFondo.getIdUsuario(), asociacionUsuarioFondo.getIdFondo(), false);
-        if(Boolean.TRUE.equals(exists)) throw new ValidacionException("No hay registros disponibles para cancelar para el mismo usuario y fondo.");
+
+        var historialCancelacion = this.asociacionUsuarioFondoRepository.findAllByIdUsuarioOrderByFechaHoraCreacionDesc(asociacionUsuarioFondo.getIdUsuario());
+
+        //Acá se valida en el historial asociaciones, si hay un registro activo para un fondo para cancelarlo, si se deja solo la validación de abajo, cuando hay varias asociaciones para un mismo usuario y fondo, falla
+        var ultimo = historialCancelacion.stream()
+                .filter(a -> a.getIdFondo().equals(asociacionUsuarioFondo.getIdFondo()))
+                .filter(a -> "APERTURA".equals(a.getTipoVinculacion()))
+                .filter(a -> Boolean.FALSE.equals(a.getActivo()))
+                .max(Comparator.comparing(AsociacionUsuarioFondo::getFechaHoraCreacion))
+                .orElse(null);
+
+        if(ultimo == null){
+            //Acá se valida que haya un registro que esté activo el cual vaya a ser cancelado
+            var exists = this.asociacionUsuarioFondoRepository.existsByIdUsuarioAndIdFondoAndActivo(asociacionUsuarioFondo.getIdUsuario(), asociacionUsuarioFondo.getIdFondo(), false);
+            if(Boolean.TRUE.equals(exists)) throw new ValidacionException("No hay registros disponibles para cancelar para el mismo usuario y fondo.");
+        }
+
     }
 
     @Autowired

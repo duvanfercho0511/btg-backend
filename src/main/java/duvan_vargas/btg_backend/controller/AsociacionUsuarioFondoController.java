@@ -47,7 +47,7 @@ public class AsociacionUsuarioFondoController {
      * @param
      * @return
      */
-    @GetMapping("/findAll")
+    @GetMapping("/historial")
     public ResponseEntity<List<AsociacionUsuarioFondoDTO>> findAllAsociacionByIdUsuario(
             @RequestParam(name = "idUsuario") String idUsuario
     ) {

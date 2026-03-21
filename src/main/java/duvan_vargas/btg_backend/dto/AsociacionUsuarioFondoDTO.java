@@ -38,7 +38,7 @@ public class AsociacionUsuarioFondoDTO implements Serializable {
 
     private Date fechaHoraCreacion;
 
-    @NotNull(message = "Campo no puede ser nulo")
+    @NotNull(message = "Campo no puede ser nulo") //Si es true, se le envía un correo, si es false se le envía un SMS
     private Boolean notifiacionEmail;
 
 }
